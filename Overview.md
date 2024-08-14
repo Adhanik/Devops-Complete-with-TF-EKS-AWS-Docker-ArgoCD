@@ -412,3 +412,116 @@ sudo vi /etc/hosts
 Now we can try go-web-app.local/home can now be accessed
 
 
+# Helm Chart configuration
+
+# Concept
+
+Helm is used When we want to deploy our application to diff envs. Consider below eg ->
+
+We have our deployment, service, and ingress.yaml, and all these are hardcoded. Lets look at our image - image: adminnik/go-web-app:v3 which we are using in deployment.yaml. If we want something for dev, prod, we would need to make separate folders and files for each like k8s/manifest/dev -> image: adminnik/go-web-app:dev, k8s/manifest/prod ->image: adminnik/go-web-app:prod
+
+So instead of doing this, we can use helm , and in helm chart, we can variablise these kinds of things.
+
+So to our testing/dev team, we can jsut tell them that pass the tag name as variable.
+
+
+# Steps
+
+1. We will create a folder name helm
+2. Install helm locally
+
+    brew install helm
+    helm version
+
+3. Switch to helm dir, and run the command
+
+    cd helm
+    helm create go-web-app-chart
+
+4. You can see helm has already created some files for us
+
+amitdhanik@Amits-MacBook-Air helm % cd go-web-app-chart 
+amitdhanik@Amits-MacBook-Air go-web-app-chart % ls 
+Chart.yaml charts          templates       values.yaml
+
+If you know what is values.yaml, wht is templates, and what is chart.yaml, you know helm
+
+
+# Chart.yml 
+
+Chart provides information about the chart. We can assume it as metadata. For eg, type: application
+Initially chart-version will start with version 0.1.0
+
+# Templates
+
+When we create helm dir structure like this ( with command helm create go-web-app-chart), remove everything that is there inside this template
+
+  rm -rf *
+
+And now inside the templates, just copy your KB manifests (for us we have deployment.yaml, service.yaml & ingress.yaml)
+
+And now we can variablise our deployment.yaml
+
+vi deployment.yaml
+
+Change image tag to a Jinja 2 templating followed by .Values.image.tag
+
+   image: adminnik/go-web-app:{{ .Values.image.tag }}
+
+This means, that helm, whenever executed will look for the tag from values.yaml file
+
+# Values.yaml
+
+Remove everything from your values.yaml, and put the below. Here we are using .Values.image.tag
+For our reference, we can variablise other things as well, such as repository name, ingress configuration.
+
+So now when you run your deployment file, it will go to values.yaml, and go to image.tag -->"10016307834"
+Now this stringe would be populated dynamically evry time CI/CD is run. we will update values.yaml of helm with latest image that we created in CI, and using ArgoCD, that latest image with latest tag will automatically be deployed
+
+Rigt now our tag is v3, so we will use that in place of 10016307834
+
+replicaCount: 1
+
+image:
+  repository: abhishekf5/go-web-app
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  #tag: "10016307834"
+  tag: "v1"
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+
+Now we will install everything through helm, so we will delete everything
+
+  kubectl delete deploy go-web-app
+  kubectl delete svc go-web-app
+  kubectl delete ing go-web-app
+
+  kubectl get all (resulte in nothing)
+
+Since we created this chart before - helm create go-web-app-chart
+Now we can install everything with helm - helm install go-web-app ./go-web-app-chart
+
+Now after this, if you do kubectl get deployment, you can see your pods up and running.
+Similarly for kubectl get svc, kubectl get ing
+
+If you do kubectl edit deploy go-web-app, you can see that in image, you will get the v1 tag, which has been take from values.yaml. It replaced the tag in deployment.yaml
+
+To uninstall everything, we can run - helm uninstall go-web-app
+
+
+# Summary
+
+We have completed Helm, EKS with TF, Containerisation with Docker and Ingress controller
+

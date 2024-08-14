@@ -1,5 +1,7 @@
 
 
+# Helm commands
+
 # Node commands
 
     kubectl describe node <node-name>   - to check node details and configurations.
@@ -7,9 +9,11 @@
 
 # Deployment commands
 
+  kubectl get all
   kubectl get deployments
   kubectl describe deployment <deployment-name>
   kubectl set image deployment/go-web-app go-web-app=adminnik/go-web-app:v3 (if you have changed the docker image)
+  kubectl delete deploy go-web-app - delete deployment
 
 # Replica Set
 
