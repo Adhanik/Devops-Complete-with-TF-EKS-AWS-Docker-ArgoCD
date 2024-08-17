@@ -823,3 +823,9 @@ amitdhanik@Amits-MacBook-Air go-web-app %
 
 
 Now if we do http://go-web-app.local/about, we can see the website loading as well.
+
+10432919248 - this is our latest image
+
+- image: adminnik/go-web-app:v3
+
+this would change to above and you can verify by checking in - kubectl edit deploy
