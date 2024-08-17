@@ -1,6 +1,9 @@
 
 
 # Helm commands
+    helm create <chart-name>
+    helm install go-web-app ./go-web-app-chart  (go-web-app is deployment name, ./<chartname>)
+    helm uninstall go-web-app
 
 # Node commands
 
@@ -12,6 +15,7 @@
   kubectl get all
   kubectl get deployments
   kubectl describe deployment <deployment-name>
+  kubectl edit deploy <deployment-name>
   kubectl set image deployment/go-web-app go-web-app=adminnik/go-web-app:v3 (if you have changed the docker image)
   kubectl delete deploy go-web-app - delete deployment
 

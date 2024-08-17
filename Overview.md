@@ -472,7 +472,8 @@ This means, that helm, whenever executed will look for the tag from values.yaml 
 
 # Values.yaml
 
-Remove everything from your values.yaml, and put the below. Here we are using .Values.image.tag
+Remove everything from your values.yaml, and copy the values.yaml that is there in go-web-app-devops repo. Here we are using .Values.image.tag
+
 For our reference, we can variablise other things as well, such as repository name, ingress configuration.
 
 So now when you run your deployment file, it will go to values.yaml, and go to image.tag -->"10016307834"
@@ -510,13 +511,73 @@ Now we will install everything through helm, so we will delete everything
 
   kubectl get all (resulte in nothing)
 
+O/P
+
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl get all
+      NAME                              READY   STATUS    RESTARTS   AGE
+      pod/go-web-app-6654f6598f-fmt7p   1/1     Running   0          28m
+
+      NAME                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+      service/go-web-app   ClusterIP   172.20.88.172   <none>        80/TCP    27m
+      service/kubernetes   ClusterIP   172.20.0.1      <none>        443/TCP   47m
+
+      NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+      deployment.apps/go-web-app   1/1     1            1           28m
+
+      NAME                                    DESIRED   CURRENT   READY   AGE
+      replicaset.apps/go-web-app-6654f6598f   1         1         1       28m
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl delete deploy go-web-app
+      deployment.apps "go-web-app" deleted
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl get deploy 
+      No resources found in default namespace.
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl get svc
+      NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+      go-web-app   ClusterIP   172.20.88.172   <none>        80/TCP    27m
+      kubernetes   ClusterIP   172.20.0.1      <none>        443/TCP   48m
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl delete svc go-web-app
+      service "go-web-app" deleted
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl get svc              
+      NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+      kubernetes   ClusterIP   172.20.0.1   <none>        443/TCP   48m
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl get ing   
+      NAME         CLASS   HOSTS              ADDRESS                                                                         PORTS   AGE
+      go-web-app   nginx   go-web-app.local   a1944ccdec71d49d2af10c6252b6f005-f6bff86f3bac8e03.elb.us-east-1.amazonaws.com   80      26m
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl delete ing go-web-app
+      ingress.networking.k8s.io "go-web-app" deleted
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % kubectl get all              
+      NAME                 TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+      service/kubernetes   ClusterIP   172.20.0.1   <none>        443/TCP   49m
+      amitdhanik@Amits-MacBook-Air go-web-app-chart % 
+
 Since we created this chart before - helm create go-web-app-chart
+
+this dir consist of all our manifest file, insdie templates. and the values.yaml consist of image details
+
 Now we can install everything with helm - helm install go-web-app ./go-web-app-chart
 
 Now after this, if you do kubectl get deployment, you can see your pods up and running.
 Similarly for kubectl get svc, kubectl get ing
 
 If you do kubectl edit deploy go-web-app, you can see that in image, you will get the v1 tag, which has been take from values.yaml. It replaced the tag in deployment.yaml
+
+      amitdhanik@Amits-MacBook-Air helm % helm install go-web-app ./go-web-app-chart 
+      NAME: go-web-app
+      LAST DEPLOYED: Sat Aug 17 17:43:29 2024
+      NAMESPACE: default
+      STATUS: deployed
+      REVISION: 1
+      TEST SUITE: None
+      amitdhanik@Amits-MacBook-Air helm % kubectl get deployment
+      NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+      go-web-app   1/1     1            1           14s
+      amitdhanik@Amits-MacBook-Air helm % kubectl get svc
+      NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+      go-web-app   ClusterIP   172.20.207.39   <none>        80/TCP    39s
+      kubernetes   ClusterIP   172.20.0.1      <none>        443/TCP   55m
+      amitdhanik@Amits-MacBook-Air helm % kubectl get ing
+      NAME         CLASS   HOSTS              ADDRESS                                                                         PORTS   AGE
+      go-web-app   nginx   go-web-app.local   a1944ccdec71d49d2af10c6252b6f005-f6bff86f3bac8e03.elb.us-east-1.amazonaws.com   80      44s
+      amitdhanik@Amits-MacBook-Air helm % 
 
 To uninstall everything, we can run - helm uninstall go-web-app
 
@@ -525,3 +586,198 @@ To uninstall everything, we can run - helm uninstall go-web-app
 
 We have completed Helm, EKS with TF, Containerisation with Docker and Ingress controller
 
+### CI/CD
+
+Whenever developer comits a change or creates a pull request, the CI/CD pipeline is triggered, where as part of CI, using Github actions, we will run multiple stages. These stages are explained in detail in below -->
+
+
+# Implementing CI using GITHUB ACTIONS
+
+We will be developing our CI whenever a commit happens
+In CI, we will implement mulitple stages. The  stages would be implemented in below order - 
+
+1. Build and Test (unit test)
+2. We will run the static code analysis.
+3. We will create Docker image, and push the docker image
+4. Update helm values.yaml (automatically updated) with docker image tag that we have created.
+
+# CD using GITOPS - ARGO CD
+
+After this CD comes in picture, where we will be making use of Argo CD. ArgoCD watches the helm chart. 
+
+Once helm tag is updated, and values.yaml is updated,  ArgoCD will pull the Helm chart, (if helm chart already exists, it will update the helm chart) so a new version is deployed on KB cluster.
+
+It is important to understand how CI and CD are connected. We can add n no of stages in CI, its not difficult, whats difficult is how CI every new commit is updated to your helm, and how CD immediately picks up that change, and deploys that change on KB cluster.
+
+### IMPLEMENTING GITHUB CI PIPELINE
+
+To implement a github CI pipeline
+
+1. Create a dir as .github
+2. Inside the .github dir, create another folder as workflows
+3. Inside workflows, you can create a file, eg ci.yaml
+
+# Workflows
+
+A workflow is a configurable automated process that will run one or more jobs. Workflows are defined by a YAML file checked in to your repository and will run when triggered by an event in your repository, or they can be triggered manually, or at a defined schedule.
+
+A repository can have multiple workflows, each which can perform a different set of tasks such as:
+
+  Building and testing pull requests.
+  Deploying your application every time a release is created.
+  Adding a label whenever a new issue is opened.
+
+
+We need to provide a trigger for github so github knows when to build the pipeline. This is called workflow in Github, which is similar to build trigger in Jenkins.
+
+# push condtions
+
+You have to mention clearly when github has to trigger the workflow. We will build the pipeline whenever someone pushes to branch main. Also ignore some paths, for eg, readme.md (if someone is updating documentation, we dont have to run the CI pipeline there). If someone is updating anything inside the helm folder, we dont have to run the CI pipeline. So we can mention all these.
+
+name: Go
+
+on: 
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'helm/**'
+
+# Jobs
+
+In Github actions, inside the Jobs, we will start writing the stages. N no of stages can be mentioned inside this jobs section.
+
+**Build and Test Job**
+
+We have 3 stages defined in our job sectiion, all stages doing a specific set of tasks.
+
+  Build
+  Code qualtiy
+  push
+  update-newtag-in-helm-chart
+
+Lets discuss them in detail
+
+Our first job is going to be the build and test job. YOu can find the below syntax in github actions docs in section - Use cases and examples (Build and test).
+
+1. When we run a job, we need to provide the vm or container where github actions will run this particular stage. We are saying github to use its own runner, we can also use our runner as well.
+
+2. Checkout the source code
+3. Install go lang in it(616-617)
+4. Run the build command (622-623)
+5. Test the unit test cases(624-625)
+
+2. The next stage is code quality
+
+1. For every stage that we write, we need to provide a image(code-quality here) as github action need to execute this on the runner, so it needs to know on which runner it needs to run.
+
+2. The steps mentioned from 641-645 are used everywhere in a golang project for static code analysis. Golangci is used for linting. You can get all the actions specified pipeline on **GITHUB ACTIONS MARKETPLACE**
+We have actions defined for most of this things, and we dont have to specifiy actions on our own, unless and until it is not available in action marketplace
+
+3. We will push docker image to docker hub
+
+When we do docker login, Since its not good to push secrets in a CI pipeline, we can go to our Repo, click on settings , Secrets and variables, click on Actions - Click on repository secrets - New repo secrets. Provide the dockerhub username, and dockerhub token. Generate token from dockerhub
+
+tags: ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{github.run_id}}
+
+Every commit creates a new docker image, and tag for new docker image that gets created should is github.run_id
+line 56 to 62 
+    - name: Build and Push action
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: /Dockerfile
+        push: true
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/go-web-app:${{github.run_id}}
+
+If 100 images are created, they are all pushed to github repo with a new {{github.run_id}}
+
+3. Last stage is to update helm chart with new tag that CI has created.
+
+We have used needs: push here
+
+It means only after the stage push is complted, it will trigger the last stage.
+
+we have created a secret token as well, because for pushing to github repo, we need github token. Create secret within same repo where u created docker token. share the personal access token from developer setting (classic tokens), give permission and generate token.
+
+Once we have updated the values.yaml using sed command, we have to push the commit again. so we will add and push the changes again
+
+name: Go
+
+on: 
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - 'helm/**'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+    - name: Set up Go 1.22
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.22
+    - name: Build
+      run: go build -o go-web-app
+    - name: Test
+      run: go test ./..
+  
+  code-quality:
+    runs-on: ubuntu-latest
+
+    steps: 
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: v1.56.2
+
+Commit the changes to github
+
+# ArgoCD
+
+Everytime the CI pipeline is run, Argo CD has to identify the change, and push it to KB cluster.
+
+# Implementing ARGOCD
+
+Firstly we have to install ARGO CD
+
+Install Argo CD using manifests
+
+  kubectl create namespace argocd
+  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+Access the Argo CD UI (Loadbalancer service)
+  kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+Get the Loadbalancer service IP
+
+  kubectl get svc argocd-server -n argocd
+
+
+Once the lB is deployed, you can access the ArgoCD. To login, you need password, which can be retrieved by - 
+
+  kubectl get secrets -n argocd
+    select the admin-secret one, and run
+
+  kubectl edit secret ***-admin-secret -n argocd
+
+  copy the password, run 
+  
+  echo <encoded-password> | base64 --decode  
+  Copy till % (excluding %)
+
+Our ArgoCD is on the same KB cluster
+
+
+Click on New app - 
