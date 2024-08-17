@@ -742,7 +742,7 @@ jobs:
       with:
         version: v1.56.2
 
-Commit the changes to github
+Commit the changes to github. We got a few error, we removed the test section, and removed / from Dockerfile context,and our build was success. Also, the branch was set to main, while we are working on master, so we had to change that to trigger the GITHUB ACTIONS
 
 # ArgoCD
 
@@ -755,16 +755,34 @@ Firstly we have to install ARGO CD
 Install Argo CD using manifests
 
   kubectl create namespace argocd
-  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml (taken from gITHUB OF INSTRUCTORE)
 
 Access the Argo CD UI (Loadbalancer service)
   kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+service/argocd-server patched
+  we can create service of type load balancer or node port
 
 Get the Loadbalancer service IP
 
   kubectl get svc argocd-server -n argocd
 
+amitdhanik@Amits-MacBook-Air go-web-app % kubectl get svc argocd-server -n argocd
+NAME            TYPE           CLUSTER-IP      EXTERNAL-IP                                                              PORT(S)                      AGE
+argocd-server   LoadBalancer   172.20.84.225   ac7617b9bb346429fbd646ee386b9e88-725959829.us-east-1.elb.amazonaws.com   80:30748/TCP,443:32704/TCP   2m12s
+amitdhanik@Amits-MacBook-Air go-web-app % 
 
+We can google this ac7617b9bb346429fbd646ee386b9e88-725959829.us-east-1.elb.amazonaws.com, and we will see our LB
+
+OR
+
+kubectl get svc -n argocd  -- get the ports
+
+argocd-server                             LoadBalancer   172.20.84.225    ac7617b9bb346429fbd646ee386b9e88-725959829.us-east-1.elb.amazonaws.com   80:30748/TCP,443:32704/TCP   3m54s
+
+kubectl get nodes -o wide (we dont have public eks, so we cant use external ip)
+
+username - admin
 Once the lB is deployed, you can access the ArgoCD. To login, you need password, which can be retrieved by - 
 
   kubectl get secrets -n argocd
@@ -772,12 +790,36 @@ Once the lB is deployed, you can access the ArgoCD. To login, you need password,
 
   kubectl edit secret ***-admin-secret -n argocd
 
-  copy the password, run 
+  copy the password, run  (eg - echo UGlaOE90cGbjRROU1BUQ== | base64 --decode)
   
   echo <encoded-password> | base64 --decode  
   Copy till % (excluding %)
 
 Our ArgoCD is on the same KB cluster
 
+# Configuration
 
-Click on New app - 
+Click on New app - sync policy - automatic (if manual, we need to pick new tag, and then deploy)
+
+Self heal = if someone makes manual changes to your kb cluster, argo cd will fix that manual changes. 
+
+if we do kubectl get all , we have nothing
+
+we will give values.yaml, that is there in out github repo
+
+# O/P
+
+amitdhanik@Amits-MacBook-Air go-web-app % kubectl get svc
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+go-web-app   ClusterIP   172.20.75.106   <none>        80/TCP    88s
+kubernetes   ClusterIP   172.20.0.1      <none>        443/TCP   176m
+amitdhanik@Amits-MacBook-Air go-web-app % kubectl get ing
+NAME         CLASS   HOSTS              ADDRESS                                                                         PORTS   AGE
+go-web-app   nginx   go-web-app.local   a1944ccdec71d49d2af10c6252b6f005-f6bff86f3bac8e03.elb.us-east-1.amazonaws.com   80      2m2s
+amitdhanik@Amits-MacBook-Air go-web-app % kubectl get deploy
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+go-web-app   1/1     1            1           2m7s
+amitdhanik@Amits-MacBook-Air go-web-app % 
+
+
+Now if we do http://go-web-app.local/about, we can see the website loading as well.
